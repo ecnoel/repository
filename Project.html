@@ -64,35 +64,44 @@ img {
 </div>
 
 
-<p>The goal of this project is to predict the manner in which the participants did the exercise. This is represented by the “classe” variable in the training set.</p>
-<div id="get-and-clean-the-data" class="section level3">
-<h3>Get and clean the data</h3>
-<p>Read the csv file for training</p>
+<p>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants and predict the manner in which the participants did the exercise. More information is available from the website: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset).</p>
+<p>The “classe” variable (of possible values A, B, C, D, E) in the training set represents how well the participants did the exercise.</p>
+<div id="read-and-filter-the-data" class="section level3">
+<h3>Read and filter the data</h3>
+<p>Inspection of the data reveals missing data (NA or blank values) and columns of values not suitable for modeling (names, timestamps, string). We deal with this by filtering the data:</p>
+<ol style="list-style-type: decimal">
+<li>Read the csv file for training</li>
+</ol>
 <pre class="r"><code>pml_training &lt;- read.csv(&quot;pml-training.csv&quot;)
 pml_testing &lt;- read.csv(&quot;pml-testing.csv&quot;)</code></pre>
-<p>Remove all columns that contain blanks or NA’s</p>
+<ol start="2" style="list-style-type: decimal">
+<li>Remove all columns that contain blanks or NA’s</li>
+</ol>
 <pre class="r"><code>pml_training[pml_training == &quot;&quot;] &lt;- NA
 pml_testing[pml_testing == &quot;&quot;] &lt;- NA
-pml_training_clean &lt;- Filter(function(x)!any(is.na(x)), pml_training)
-pml_testing_clean &lt;- Filter(function(x)!any(is.na(x)), pml_testing)</code></pre>
-<p>Remove the first 7 columns since they contain names, timestamps &amp; strings</p>
-<pre class="r"><code>pml_training_clean &lt;- pml_training_clean [7:length (pml_training_clean)]
-pml_testing_clean &lt;- pml_testing_clean [7:length (pml_testing_clean)]</code></pre>
-<p>Split the training data into a training set and a cross validation set</p>
-<pre class="r"><code>inTrain &lt;- createDataPartition(y = pml_training_clean$classe, p = 0.7, list = FALSE)
-training &lt;- pml_training_clean [inTrain, ]
-crossvalidation &lt;- pml_training_clean [-inTrain, ]</code></pre>
+pml_training_filter &lt;- Filter(function(x)!any(is.na(x)), pml_training)
+pml_testing_filter &lt;- Filter(function(x)!any(is.na(x)), pml_testing)</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li>Remove the first 7 columns since they contain names, timestamps &amp; strings</li>
+</ol>
+<pre class="r"><code>pml_training_filter &lt;- pml_training_filter [7:length (pml_training_filter)]
+pml_testing_filter &lt;- pml_testing_filter [7:length (pml_testing_filter)]</code></pre>
+<p>Finally, we can split the training data into a training set and a testing set:</p>
+<pre class="r"><code>inTrain &lt;- createDataPartition(y = pml_training_filter$classe, p = 0.7, list = FALSE)
+training &lt;- pml_training_filter [inTrain, ]
+testing &lt;- pml_training_filter [-inTrain, ]</code></pre>
 </div>
-<div id="model-building" class="section level3">
-<h3>Model building</h3>
-<p>Fit a model using random forest to predict the “classe” variable using everything else as a predictor</p>
-<pre class="r"><code>model &lt;- randomForest(classe ~ ., data = training)</code></pre>
+<div id="build-the-model" class="section level3">
+<h3>Build the model</h3>
+<p>We chose a random forest model because this category of model is known to be very accurate. First we implemented random forest following the class video (function train with method set to rf). It turned out that run time was not practical. Fortunately, there exists another R implementation of random forest. With that one run time is significantly shorter (minutes versus hours).</p>
+<p>So we fit our trainin data to a random forest model and predict the “classe” variable using everything else as a predictor.</p>
+<pre class="r"><code>modFit &lt;- randomForest(classe~., data = training)</code></pre>
 </div>
-<div id="error-estimation-with-cross-validation" class="section level3">
-<h3>Error estimation with cross validation</h3>
-<p>Using the model that we’ve trained, we’re performing a cross validation with the rest of data from the dataset reserved for this reason.</p>
-<pre class="r"><code>predictCrossVal &lt;- predict(model, crossval)
-confusionMatrix (crossval$classe, predictCrossVal)</code></pre>
+<div id="model-accuracy" class="section level3">
+<h3>Model accuracy</h3>
+<p>To compute the model accuracy, we use the test dataset that we constructed.</p>
+<pre class="r"><code>rfPred &lt;- predict(modFit, testing)
+confusionMatrix (testing, rfPred)</code></pre>
 <p>The output of the confusionMatrix consists of a cross-tabulation of observed and predicted classes with associated statistics:</p>
 <pre class="r"><code>Confusion Matrix and Statistics
 
@@ -125,12 +134,12 @@ Prevalence             0.2846   0.1939   0.1743   0.1638   0.1833
 Detection Rate         0.2845   0.1934   0.1738   0.1633   0.1833
 Detection Prevalence   0.2845   0.1935   0.1743   0.1638   0.1839
 Balanced Accuracy      0.9997   0.9986   0.9982   0.9981   0.9997</code></pre>
-<p>Our model accuracy is 99.83%</p>
+<p>Our model accuracy of 99.83% is quiet good compared to other models (Naive Bayes resulted in an accuracy of 73%, Linear Discriminant Analysis resulted in an accuracy of 70%, PLS resulted in an accuracy of 38%).</p>
 </div>
 <div id="predict-the-20-test-cases" class="section level3">
 <h3>Predict the 20 test cases</h3>
 <p>Using the testing data set, we predict the “classe” variable</p>
-<pre class="r"><code>answers &lt;- predict (model, pml_testing_clean)</code></pre>
+<pre class="r"><code>answers &lt;- predict (modFit, pml_testing_filter)</code></pre>
 <p>We then apply our answer array to the function provided by the instructor:</p>
 <pre class="r"><code>pml_write_files = function(x){
   n = length(x)
