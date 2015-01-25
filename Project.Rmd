@@ -101,7 +101,7 @@ E    0    0    0    5 2520 0.001980198
 ```
 
 From the confusion matrix, we deduce the model in-sample error to be 38/13737 = 0.28%. Given the correlation matrix of the
-training data, we expect to out-of-sample error for our random forest model to be within the same range.
+training data, we expect to out-of-sample error for our random forest model to be no more 1%.
 
 ### Model accuracy
 
