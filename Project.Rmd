@@ -3,7 +3,7 @@ title: "Practical Machine Learning Project"
 output: html_document
 ---
 
-Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit, it is now possible to collect a large amount of data
 about personal activity relatively inexpensively. One thing that people regularly do is quantify how much of a
 particular activity they do, but they rarely quantify how well they do it. In this project, our goal is to
 use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants and predict the manner in
@@ -16,7 +16,7 @@ did the exercise.
 ### Read and filter the data
 
 Inspection of the data reveals missing data (NA or blank values) and columns of values not suitable for modeling
-(names, timestamps, string). We deal with this by filtering the data:
+(row identifier, names, timestamps, string). We deal with this by filtering the data:
 
 (1) Read the csv file for training
 ```{r,eval=FALSE}
@@ -32,39 +32,84 @@ pml_training_filter <- Filter(function(x)!any(is.na(x)), pml_training)
 pml_testing_filter <- Filter(function(x)!any(is.na(x)), pml_testing)
 ```
 
-(3) Remove the first 7 columns since they contain names, timestamps & strings
+(3) Remove the first 7 columns since they contain row identifiers, names, timestamps & strings
 ```{r,eval=FALSE}
 pml_training_filter <- pml_training_filter [7:length (pml_training_filter)]
 pml_testing_filter <- pml_testing_filter [7:length (pml_testing_filter)]
 ```
 
-Finally, we can split the training data into a training set and a testing set:
+Finally, we can split the training data into a training set (70% of the data) and a testing set (30% of the data):
 ```{r,eval=FALSE}
+set.seed(32343) # Use the same seed as in lecture 14 slide 8
 inTrain <- createDataPartition(y = pml_training_filter$classe, p = 0.7, list = FALSE)
-training <- pml_training_filter [inTrain, ]
-testing <- pml_training_filter [-inTrain, ]
+training <- pml_training_filter [inTrain,]
+testing <- testingandcrossval[-inTrain,]
+```
+### Analyze the training data
+
+To visualize correlation between variables in the training data set, we construct a correlation matrix and display it
+visually with the function corrplot (level plot or heatplot are other plotting options).
+
+```{r,eval=FALSE}
+z<-cor(training[1:length (training)-1])
+corrplot(z, method = "color", tl.cex = 0.6, tl.col = "black")
+```
+
+Inspection of the graphical representation of the correlation matrix shows that parameters in the training dataset would
+contribute to the prediction model.
+
+```{r fig.width=10, fig.height=10}
+library(png)
+library(grid)
+img <- readPNG("./CorrPlot2.PNG")
+ grid.raster(img)
 ```
 
 ### Build the model
 
-We chose a random forest model because this category of model is known to be very accurate. First we implemented random
-forest following the class video (function train with method set to rf). It turned out that run time was not practical.
-Fortunately, there exists another R implementation of random forest. With that one run time is significantly shorter
-(minutes versus hours).
+We tried a a few of the models discussed in the class: Naive Bayes (73% accuracy), Linear Discriminant Analysis
+(70% accuracy), PLS (38% accuracy).
 
-So we fit our trainin data to a random forest model and predict the "classe" variable using everything else as a predictor.
+Eventually we chose a random forest model because this category of model is known to be very accurate.
+First we try to implement the random forest following the class (function train with method set to rf).
+It turned out that run time was not practical.
+Fortunately, we found another R implementation of random forest: randomForest. That implementation resulted in a run time
+significantly shorter (minutes versus hours). (Probably it is possible to set the train function parameters to values that
+would match those of randomForest.) 
+
+So we fit our training data set to a random forest model and predict the "classe" variable using everything else as a
+predictor. 
 
 ```{r,eval=FALSE}
 modFit <- randomForest(classe~., data = training)
+modFit
+
+Call:
+ randomForest(formula = classe ~ ., data = training) 
+               Type of random forest: classification
+                     Number of trees: 500
+No. of variables tried at each split: 7
+
+        OOB estimate of  error rate: 0.28%
+Confusion matrix:
+     A    B    C    D    E class.error
+A 3906    0    0    0    0 0.000000000
+B    5 2653    0    0    0 0.001881114
+C    0   12 2384    0    0 0.005008347
+D    0    0   15 2236    1 0.007104796
+E    0    0    0    5 2520 0.001980198
 ```
+
+From the confusion matrix, we deduce the model in-sample error to be 38/13737 = 0.28%. Given the correlation matrix of the
+training data, we expect to out-of-sample error for our random forest model to be within the same range.
 
 ### Model accuracy
 
-To compute the model accuracy, we use the test dataset that we constructed.
+We compute the model accuracy on the test data set:
 
 ```{r,eval=FALSE}
 rfPred <- predict(modFit, testing)
-confusionMatrix (testing, rfPred)
+confusionMatrix (testing$classe, rfPred)
 ```
 
 The output of the confusionMatrix consists of a cross-tabulation of observed and predicted classes with associated
@@ -73,38 +118,38 @@ statistics:
 Confusion Matrix and Statistics
 
           Reference
-Prediction    A    B    C    D    E
-         A 1674    0    0    0    0
-         B    1 1138    0    0    0
-         C    0    3 1023    0    0
-         D    0    0    3  961    0
-         E    0    0    0    3 1079
+Prediction   A   B   C   D   E
+         A 490   0   0   0   0
+         B   0 361   1   0   0
+         C   0   4 309   0   0
+         D   0   0   2 281   0
+         E   0   0   0   0 313
 
 Overall Statistics
                                           
-               Accuracy : 0.9983          
-                 95% CI : (0.9969, 0.9992)
-    No Information Rate : 0.2846          
+               Accuracy : 0.996           
+                 95% CI : (0.9918, 0.9984)
+    No Information Rate : 0.2783          
     P-Value [Acc > NIR] : < 2.2e-16       
                                           
-                  Kappa : 0.9979          
+                  Kappa : 0.995           
  Mcnemar's Test P-Value : NA              
 
 Statistics by Class:
 
                      Class: A Class: B Class: C Class: D Class: E
-Sensitivity            0.9994   0.9974   0.9971   0.9969   1.0000
-Specificity            1.0000   0.9998   0.9994   0.9994   0.9994
-Pos Pred Value         1.0000   0.9991   0.9971   0.9969   0.9972
-Neg Pred Value         0.9998   0.9994   0.9994   0.9994   1.0000
-Prevalence             0.2846   0.1939   0.1743   0.1638   0.1833
-Detection Rate         0.2845   0.1934   0.1738   0.1633   0.1833
-Detection Prevalence   0.2845   0.1935   0.1743   0.1638   0.1839
-Balanced Accuracy      0.9997   0.9986   0.9982   0.9981   0.9997
+Sensitivity            1.0000   0.9890   0.9904   1.0000   1.0000
+Specificity            1.0000   0.9993   0.9972   0.9986   1.0000
+Pos Pred Value         1.0000   0.9972   0.9872   0.9929   1.0000
+Neg Pred Value         1.0000   0.9971   0.9979   1.0000   1.0000
+Prevalence             0.2783   0.2073   0.1772   0.1596   0.1777
+Detection Rate         0.2783   0.2050   0.1755   0.1596   0.1777
+Detection Prevalence   0.2783   0.2056   0.1777   0.1607   0.1777
+Balanced Accuracy      1.0000   0.9942   0.9938   0.9993   1.0000
 ```
 
-Our model accuracy of 99.83% is quiet good compared to other models (Naive Bayes resulted in an accuracy of 73%,
-Linear Discriminant Analysis resulted in an accuracy of 70%, PLS resulted in an accuracy of 38%).  
+The out-of-sample error for our model is 7/1761=0.40% is within the expected range. While our model accuracy of 99.5%
+is quiet good compared to the other models mentioned.  
 
 ### Predict the 20 test cases
 
@@ -125,7 +170,7 @@ pml_write_files = function(x){
 pml_write_files(answers)
 ```
 
-We provide the results here (all successfully submited).
+We provide the results here:
 ```{r,eval=FALSE}
  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
