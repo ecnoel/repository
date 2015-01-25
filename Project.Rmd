@@ -5,13 +5,24 @@ output: html_document
 
 Using devices such as Jawbone Up, Nike FuelBand, and Fitbit, it is now possible to collect a large amount of data
 about personal activity relatively inexpensively. One thing that people regularly do is quantify how much of a
-particular activity they do, but they rarely quantify how well they do it. In this project, our goal is to
+particular activity they do, but they rarely quantify how well they do it.
+
+In this project, our goal is to
 use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants and predict the manner in
-which the participants did the exercise. More information is available from the website:
+which the participants did the exercise. More information on the data used is available from the website:
 http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
 
-The "classe" variable (of possible values A, B, C, D, E) in the training set represents how well the participants
+We predict the "classe" variable (of possible values A, B, C, D, E) in the training set that represents how well the participants
 did the exercise.
+
+### Libraries
+
+We start by importing the following libraries:
+```{r,eval=FALSE}
+library(caret)
+library(randomForest)
+library(corrplot)
+```
 
 ### Read and filter the data
 
@@ -43,7 +54,7 @@ Finally, we can split the training data into a training set (70% of the data) an
 set.seed(32343) # Use the same seed as in lecture 14 slide 8
 inTrain <- createDataPartition(y = pml_training_filter$classe, p = 0.7, list = FALSE)
 training <- pml_training_filter [inTrain,]
-testing <- testingandcrossval[-inTrain,]
+testing <- pml_training_filter [-inTrain,]
 ```
 ### Analyze the training data
 
@@ -55,14 +66,14 @@ z<-cor(training[1:length (training)-1])
 corrplot(z, method = "color", tl.cex = 0.6, tl.col = "black")
 ```
 
-Inspection of the graphical representation of the correlation matrix shows that parameters in the training dataset would
+Inspection of the graphical representation of the correlation matrix shows that all parameters in the training dataset would
 contribute to the prediction model.
 
-```{r fig.width=10, fig.height=10}
+```{r fig.width=10, fig.height=10, echo=FALSE}
 library(png)
 library(grid)
 img <- readPNG("./CorrPlot2.PNG")
- grid.raster(img)
+grid.raster(img)
 ```
 
 ### Build the model
@@ -70,7 +81,7 @@ img <- readPNG("./CorrPlot2.PNG")
 We tried a a few of the models discussed in the class: Naive Bayes (73% accuracy), Linear Discriminant Analysis
 (70% accuracy), PLS (38% accuracy).
 
-Eventually we chose a random forest model because this category of model is known to be very accurate.
+Eventually we chose a random forest model because this category of model is known to be very accurate and it produced the best accuracy.
 First we try to implement the random forest following the class (function train with method set to rf).
 It turned out that run time was not practical.
 Fortunately, we found another R implementation of random forest: randomForest. That implementation resulted in a run time
@@ -100,21 +111,18 @@ D    0    0   15 2236    1 0.007104796
 E    0    0    0    5 2520 0.001980198
 ```
 
-From the confusion matrix, we deduce the model in-sample error to be 38/13737 = 0.28%. Given the correlation matrix of the
-training data, we expect to out-of-sample error for our random forest model to be no more 1%.
+From the confusion matrix (cross-tabulation of observed and predicted classes with associated statistics), we deduce the
+model in-sample error to be 38/13737 = 0.28%. Given the correlation matrix of the training data, we expect the out-of-sample
+error for our random forest model to be no more 1%.
 
 ### Model accuracy
 
-We compute the model accuracy on the test data set:
+We compute the model accuracy on the test data set and analyze the output of the confusion matrix:
 
 ```{r,eval=FALSE}
 rfPred <- predict(modFit, testing)
 confusionMatrix (testing$classe, rfPred)
-```
 
-The output of the confusionMatrix consists of a cross-tabulation of observed and predicted classes with associated
-statistics:
-```{r,eval=FALSE}
 Confusion Matrix and Statistics
 
           Reference
@@ -148,7 +156,7 @@ Detection Prevalence   0.2783   0.2056   0.1777   0.1607   0.1777
 Balanced Accuracy      1.0000   0.9942   0.9938   0.9993   1.0000
 ```
 
-The out-of-sample error for our model is 7/1761=0.40% is within the expected range. While our model accuracy of 99.5%
+The out-of-sample error for our model is 7/1761=0.40% well within the expected bound of 1%. While our model accuracy of 99.6%
 is quiet good compared to the other models mentioned.  
 
 ### Predict the 20 test cases
@@ -170,8 +178,9 @@ pml_write_files = function(x){
 pml_write_files(answers)
 ```
 
-We provide the results here:
+Finally, we provide the results here:
 ```{r,eval=FALSE}
+answers
  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
 Levels: A B C D E
